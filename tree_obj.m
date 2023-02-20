@@ -153,5 +153,124 @@ classdef tree_obj
             
         end
         
+        function brnchs = shinozaki_pipe(obj, dbh, d0)
+            
+            % an implementation based on the Shinozaki pipe model theory of
+            % plant cylinder construction.
+            % https://doi.org/10.18960/seitai.14.3_97
+            % with implementation based on the description of 
+            % https://algorithmicbotany.org/papers/colonization.egwnp2007.pdf
+            %
+            % instead of using an adjustment parameter [Runions 2007, eq.1],
+            % pipes are formed by determining the total number of children 
+            % for the plant. the counts are then scaled to fit between a
+            % maximum of the diameter at breast height and the minimum
+            % desired radius for terminal branch nodes.
+            %
+            % this code is designed for cylindrical branches with equal
+            % semi-major and semi-minor axes. space is made to compute
+            % semi-major and semi-minor independently, though i'm sure
+            % there are several considerations for the orientation of the
+            % cylinder along the growing structure.
+            %
+            % inputs %
+            % dbh -- diameter at breast height [m]
+            % d0  -- diameter of the terminal branches [m]
+            %% find terminal branches
+            
+            h = [obj(:).head];
+            t = [obj(:).tail];
+
+            % lambda functions
+            ufndc = @(a,b) find( sum( a ==  b, 1) == 3 );
+            get_par   = @(ch) ufndc( ch, h ) ;
+            get_child = @(ch) ufndc( ch, t ) ;
+
+            ts = zeros([1 size(h,2)]); % terminal points
+            % d0 = 0.5;             % radius of terminal branches [m]
+            as = zeros(size(ts)); % semi-major axis [m] (typically a==b)
+            bs = zeros(size(ts)); % semi-minor axis [m] (typically a==b)
+            is = [];
+
+            % find terminal branches
+            for i = 1:length(h)
+                if ~ismember(h(:,i)', t', 'rows')
+                    is = [is i];
+                end
+            end
+
+            % initialize terminal points with terminal diameter
+            as(is) = d0;
+            bs(is) = d0;
+
+            next_cis = is ;
+            max_its = 1000;
+            its = 0;
+            
+            % determine diameter of all branches
+            while any(as==0)
+                % reset parameters on while loop
+                cis = next_cis;
+                next_cis = [] ;
+                % loop over current end points
+                for i =1:length(cis)
+                    
+                    % check the radius of current branch's children
+                    cind = cis(i);
+                    ch = t(:, cis(i)) ;
+                    child = get_child( ch );
+
+                    % if any of the children are not defined, then
+                    % come back later
+                    if any(as(child) == 0)
+                        next_cis = [next_cis cind] ;
+                    else
+                    % if all children have defined diameter, calculate next
+                    % diameter
+                    par = get_par( ch );
+
+                    new_a = 0;
+                    new_b = 0;
+                    for ii = 1:length(child)
+                        cur_ci = child(ii) ;
+                        new_a = new_a + as(cur_ci) ;
+                        new_b = new_b + bs(cur_ci) ;
+                    end
+
+                    as( par ) = new_a ;
+                    bs( par ) = new_b ;
+                    
+                    % this iteration's tail = next iteration's head
+                    next_cis = [next_cis par] ;
+                    end
+
+                end
+                
+                % emergency break code
+                % since we're in a while loop
+                if isequal(cis, next_cis)
+                    its = its + 1;
+                end
+                % break if we exceed desired iterations
+                if its == max_its
+                    warning('shinozaki pipe model ended unexpectedly')
+                    break
+                end
+
+            end
+            
+            aso = rescale( as, d0, dbh ) ;
+            bso = rescale( bs, d0, dbh) ;
+            
+            for i = 1:size(h,2)
+                obj(i).semi_major = aso(i) ;
+                obj(i).semi_minor = bso(i) ;
+                
+            end
+            
+            brnchs = obj ;
+
+        end
+        
     end
 end
