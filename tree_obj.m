@@ -14,8 +14,9 @@ classdef tree_obj
       len {mustBeNumeric}        % length of cylinder [m]
       
       %% Meter-scale roughness
+	  pos    {mustBeNumeric} 	  % tree position (head + tail) / 2 [m]
       diel_r {mustBeNumeric}      % real relative permittivity [F/m]
-      diel_i  {mustBeNumeric}     % imag relative permittivity [F/m]
+      diel_i {mustBeNumeric}      % imag relative permittivity [F/m]
 
       pers {mustBeNumeric}        % persistence of branch length
       thrsh {mustBeNumeric}       % tree branch threshold
@@ -35,6 +36,7 @@ classdef tree_obj
             obj.head = head;
             
             obj.len = vecnorm( obj.head - obj.tail ) ;
+            obj = obj.get_pos();
 
             % unit vectors of branch
             uvec = (obj.head - obj.tail) ./ obj.len ;
@@ -43,7 +45,10 @@ classdef tree_obj
             % az and elev of 
             obj.th = acosd( dot( [0 0 1]', uvec) ) ; % incidence (about x) [deg]
             obj.el = atand( -uvec(1) / uvec(2) ) ;   %   azimuth (about z) [deg]
-
+            
+            if isnan(obj.el)
+                obj.el = 0 ;
+            end
             % rx = @(a) [1 0 0; 0 cosd(a) -sind(a); 0 sind(a) cosd(a)];
             % ry = @(a) [cosd(a) 0 sind(a); 0 1 0; -sind(a) 0 cosd(a)];
             % rz = @(a) [cosd(a) -sind(a) 0; sind(a) cosd(a) 0; 0 0 1];
@@ -272,5 +277,10 @@ classdef tree_obj
 
         end
         
+		function obj = get_pos(obj)
+            % return position [m]
+            obj.pos = (1/2) .* ( obj.head + obj.tail) ;
+        end
+		
     end
 end

@@ -18,21 +18,15 @@ plt3 = @(a) plot3(a(1,:), a(2,:), a(3,:), 'color', 'k');
 
 % initialize variables to store positions and lengths
 trunk_positions = [];
-primary_positions = [];
-secondary_positions = [];
 trunk_lengths = [];
-primary_lengths = [];
-secondary_lengths = [];
+
 
 % initialize variables to store head and tail positions of all branches
-all_head_positions = [];
-all_tail_positions = [];
 
 % initialize variables to store center position of each branch
 trunk_centers = [];
-primary_centers = [];
-secondary_centers = [];
 
+figure('color','white')
 for row = 1:n_rows
     for col = 1:n_cols
         % generate random position within range
@@ -43,38 +37,30 @@ for row = 1:n_rows
         % create tree at position
         trunk = tree_obj( tail + [x_pos; y_pos; z_pos], head + [x_pos; y_pos; z_pos], pers, thrsh );
         tree = trunk.gen_branches(ang);
+        tree = tree.shinozaki_pipe(5, 1);   % generate tree radius
+        c_pos = [x_pos y_pos z_pos]' ;    % current position
+        
+        % visualize current tree
+        for i = 1:length(tree)
+            plt3([ tree(i).tail + c_pos, tree(i).head + c_pos ]); hold('on');
+        end
+        
+        all_head_positions =  [tree(:).head] + c_pos ;
+        all_tail_positions =  [tree(:).tail] + c_pos ;
+        center_pos = [tree(:).pos] + c_pos;
+        branch_len = [ tree(:).len ] ;
+        
+        logic = branch_len >= thrsh;
+        
+        primary_positions   = center_pos(:,logic);
+        primary_lengths     = branch_len(:,logic);
+        primary_centers     = center_pos(:,logic); % this is the same as above?
+        
+        secondary_positions = center_pos(:,~logic);
+        secondary_lengths   = branch_len(:,~logic);
+        secondary_centers   = center_pos(:,~logic); % this is the same as above?
         
         % plot tree
-        for i = 1:length(tree)
-            % add offset to head and tail positions
-            tail_pos = tree(i).tail + [x_pos; y_pos; z_pos];
-            head_pos = tree(i).head + [x_pos; y_pos; z_pos];
-            plt3([ tail_pos, head_pos ]); hold('on');
-
-            % save head and tail positions of the branch
-            all_head_positions = [all_head_positions, head_pos];
-            all_tail_positions = [all_tail_positions, tail_pos];
-
-            % calculate center position of the branch
-            center_pos = tail_pos + (head_pos - tail_pos) / 2;
-            
-            % save branch position and length
-            branch_len = norm(head_pos - tail_pos);
-            %branch_pos = head_pos;
-            if branch_len > thrsh % CAN DEFINE more condition to diff branch size
-                % primary branch
-                primary_positions = [primary_positions, center_pos];
-                primary_lengths = [primary_lengths, branch_len];
-                primary_centers = [primary_centers, center_pos];
-            else
-                % secondary branch
-                secondary_positions = [secondary_positions, center_pos];
-                secondary_lengths = [secondary_lengths, branch_len];
-                secondary_centers = [secondary_centers, center_pos];
-            end
-           
-
-        end
         
         % save trunk position and length
         trunk_pos = tail + [x_pos; y_pos; z_pos];
