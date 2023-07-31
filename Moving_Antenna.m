@@ -1,4 +1,4 @@
-
+%Test for moving antenna
 % Initial receiver position  
 receiver_position = [0, 0, 1];
 
